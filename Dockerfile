@@ -12,6 +12,8 @@ ENV GOARCH="arm64"
 ENV CGO_ENABLED="0"
 ENV GOARM=8
 
+RUN go env > ./go.env
+
 RUN go build -o ./main.exe ./main.go
 RUN chmod +x ./main.exe
 
@@ -20,8 +22,9 @@ FROM arm64v8/alpine:3.22.1
 WORKDIR /
 
 COPY --from=builder /main.exe /main.exe
+COPY --from=builder /go.env /go.env
 RUN chmod +x /main.exe
 
-ENV LOG_DIR="/var/log"
+ENV LOG_DIR="/var/log/"
 
 CMD ["/main.exe"]

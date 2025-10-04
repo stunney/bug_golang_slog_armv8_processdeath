@@ -1,40 +1,49 @@
 package main
 
 import (
+	"io"
 	"log"
 	"log/slog"
 	"os"
+
+	"github.com/lmittmann/tint" // Import the tint library
+	slogmulti "github.com/samber/slog-multi"
 
 	"github.com/natefinch/lumberjack"
 )
 
 func ConfigureServiceLogging() {
-	log.Println("ConfigureServiceLogging::start")
 
-	log.Println("ConfigureServiceLogging::defineRotator")
-	// Configure Lumberjack for log rotation
-	logRotator := &lumberjack.Logger{
-		Filename:   os.Getenv("LOG_DIR"), // Name of the log file
-		MaxSize:    10,                   // Max size in megabytes before rotation
-		MaxBackups: 3,                    // Max number of old log files to keep
-		MaxAge:     7,                    // Max number of days to retain old log files
-		Compress:   true,                 // Compress old log files
-	}
-
-	log.Println("ConfigureServiceLogging::defineHandler")
-
-	// Create a slog handler that writes to the Lumberjack rotator
-	handler := slog.NewJSONHandler(logRotator, &slog.HandlerOptions{
-		AddSource: true, // Add source file and line number to logs
-		Level:     slog.LevelInfo,
+	// Create a new tint handler with desired options
+	tintHandler := tint.NewHandler(os.Stdout, &tint.Options{
+		Level:      slog.LevelDebug, // Set the minimum logging level
+		AddSource:  true,            // Add source file and line number
+		TimeFormat: "15:04:05",      // Customize timestamp format
 	})
 
-	log.Println("ConfigureServiceLogging::new_slog")
-	logger := slog.New(handler)
-	log.Println("ConfigureServiceLogging::setDefault")
+	// Configure Lumberjack for log rotation
+	logRotator := &lumberjack.Logger{
+		Filename:   os.Getenv("LOG_DIR") + "/app.log", // Name of the log file
+		MaxSize:    10,                                // Max size in megabytes before rotation
+		MaxBackups: 3,                                 // Max number of old log files to keep
+		MaxAge:     7,                                 // Max number of days to retain old log files
+		Compress:   true,                              // Compress old log files
+	}
+
+	multiWriter := slog.NewJSONHandler(
+		io.MultiWriter(logRotator),
+		&slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelInfo,
+		},
+	)
+
+	logger := slog.New(slogmulti.Fanout(
+		tintHandler,
+		multiWriter,
+	))
 
 	slog.SetDefault(logger)
-	log.Println("ConfigureServiceLogging::end")
 }
 
 func main() {

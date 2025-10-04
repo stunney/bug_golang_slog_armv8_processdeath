@@ -1,0 +1,2 @@
+#!/bin/sh
+docker build --platform linux/arm64 -t slogarmv8deathbug -f .\Dockerfile .
